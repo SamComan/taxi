@@ -226,3 +226,103 @@ jQuery(function() {
     var today = mm + "/" + dd + "/" + yyyy + "," + today.getHours() + ":" + today.getMinutes();
     jQuery("#format").val(today);
 });
+
+function get_googleinfos($dep,$ari,$infotype,$key)
+{
+	switch ($infotype) {
+    case "distance":
+       $distancematrix='https://maps.googleapis.com/maps/api/distancematrix/json?&origins='.$dep.'&destinations='.$ari.'&key='.$key;
+       $distance=scraper($distancematrix);
+      
+	   $arrayDistance= array(
+        	'distanceVal' => $distance->rows[0]->elements[0]->distance->value,
+        	'distanceText' => $distance->rows[0]->elements[0]->distance->text,
+        	'durationVal' => $distance->rows[0]->elements[0]->duration->value,
+        	'durationText' => $distance->rows[0]->elements[0]->duration->text
+        	);
+        	
+     return $arrayDistance;
+	 break;
+	   
+    case "infoplace":  
+		 header('Content-Type: application/json');
+         $infoPlace=scraper('https://maps.googleapis.com/maps/api/geocode/json?address='.$dep.'&key='.$key);
+		 $address_components=$infoPlace->{'results'}[0]->{'address_components'};
+         $city;
+         $i=0;
+         $roissy=0;
+         $orly=0;
+         $paris=0;
+         $status=0;
+         
+         
+         while($i<sizeof($address_components)){
+             if ($address_components[$i]->{short_name}==="Roissy-en-France"){$roissy=1; $status=1; }
+             
+             if (findString($address_components[$i]->{short_name},"Orly")){$orly=1; $status=1; echo findString($address_components[$i]->{short_name},"Orly"!=false); }
+          	 $j=0;
+             while($j<sizeof($address_components[$i]->{types})){
+                 
+                  if($address_components[$i]->{types}[$j]=="administrative_area_level_2"){ 
+                     
+                    if (comparison_String( $address_components[$i]->{short_name},"Paris")||comparison_String( $address_components[$i]->{short_name},"Arrondissement de Paris")){$paris=1; $status=1; }
+                  }
+                 
+                 if($address_components[$i]->{types}[$j]=="administrative_area_level_1"){  
+                    $city= array(
+                    'short_name' => $address_components[$i]->{short_name},
+                	'long_name'  => $address_components[$i]->{long_name},
+                	'roissy'=> $roissy,
+                	'orly'=> $orly,
+                	'paris'=> $paris,
+                	"status"=>$status
+                	);
+                 }
+                 $j=$j+1;
+             }
+          $i=$i+1;
+         }
+         $i=0;
+          
+		 $Place= array(
+            'City' => $city,
+             'establishment' =>$infoPlace->{'results'}[0]->{'address_components'}[0]->{long_name},
+        	'lat' => $infoPlace->{'results'}[0]->{'geometry'}->{'location'}->{'lat'}, 
+        	'lng' => $infoPlace->{'results'}[0]->{'geometry'}->{'location'}->{'lng'},
+        	);
+        	
+         return $Place;       
+    break;	
+ 
+    default:
+        echo "Your favorite color is neither red, blue, nor green!";
+	}    
+}
+
+function findString($set_String,$find_String)
+{
+   $stat= strpos(strtolower($set_String), strtolower($find_String));
+   $find=false;
+   if ($stat === false) { $find= false;} 
+   else {$find= true;}
+  return $find;
+}
+
+
+function comparison_String($str1,$str2)
+{
+    $b=false;
+    if(strcasecmp($str1, $str2) == 0){ $b=true; } 
+    else { $b=false; }
+   return $b;
+}
+
+
+function get_distence_price($distance)
+{
+    $rule=0;
+    if($distance<(5*1000)){$rule=0;}
+	if($distance>=(5*1000)&&$distance<(10*1000)){$rule=1;}
+	if($distance>=(10*1000)){$rule=2;}
+   return $rule;
+}
